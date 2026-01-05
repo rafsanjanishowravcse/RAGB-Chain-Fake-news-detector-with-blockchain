@@ -1,0 +1,217 @@
+{
+	"compiler": {
+		"version": "0.8.0+commit.c7dfd78e"
+	},
+	"language": "Solidity",
+	"output": {
+		"abi": [
+			{
+				"inputs": [],
+				"stateMutability": "nonpayable",
+				"type": "constructor"
+			},
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": true,
+						"internalType": "string",
+						"name": "newsId",
+						"type": "string"
+					},
+					{
+						"indexed": true,
+						"internalType": "bytes32",
+						"name": "urlHash",
+						"type": "bytes32"
+					},
+					{
+						"indexed": false,
+						"internalType": "string",
+						"name": "ipfsCid",
+						"type": "string"
+					}
+				],
+				"name": "NewsAdded",
+				"type": "event"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "string",
+						"name": "_newsId",
+						"type": "string"
+					},
+					{
+						"internalType": "bytes32",
+						"name": "_urlHash",
+						"type": "bytes32"
+					},
+					{
+						"internalType": "string",
+						"name": "_ipfsCid",
+						"type": "string"
+					},
+					{
+						"internalType": "uint8",
+						"name": "_score",
+						"type": "uint8"
+					}
+				],
+				"name": "addNews",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "string",
+						"name": "_newsId",
+						"type": "string"
+					}
+				],
+				"name": "getByNewsId",
+				"outputs": [
+					{
+						"internalType": "string",
+						"name": "",
+						"type": "string"
+					},
+					{
+						"internalType": "uint8",
+						"name": "",
+						"type": "uint8"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "bytes32",
+						"name": "_urlHash",
+						"type": "bytes32"
+					}
+				],
+				"name": "getByUrlHash",
+				"outputs": [
+					{
+						"internalType": "string",
+						"name": "",
+						"type": "string"
+					},
+					{
+						"internalType": "uint8",
+						"name": "",
+						"type": "uint8"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "string",
+						"name": "",
+						"type": "string"
+					}
+				],
+				"name": "newsStore",
+				"outputs": [
+					{
+						"internalType": "string",
+						"name": "ipfsCid",
+						"type": "string"
+					},
+					{
+						"internalType": "uint8",
+						"name": "credibilityScore",
+						"type": "uint8"
+					},
+					{
+						"internalType": "bool",
+						"name": "exists",
+						"type": "bool"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "owner",
+				"outputs": [
+					{
+						"internalType": "address",
+						"name": "",
+						"type": "address"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "bytes32",
+						"name": "",
+						"type": "bytes32"
+					}
+				],
+				"name": "urlHashToId",
+				"outputs": [
+					{
+						"internalType": "string",
+						"name": "",
+						"type": "string"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			}
+		],
+		"devdoc": {
+			"kind": "dev",
+			"methods": {
+				"addNews(string,bytes32,string,uint8)": {
+					"details": "1. Upload JSON to IPFS first. 2. Generate Keccak256 hash of the URL off-chain. 3. Send the News ID, URL Hash, and IPFS CID here."
+				}
+			},
+			"version": 1
+		},
+		"userdoc": {
+			"kind": "user",
+			"methods": {},
+			"version": 1
+		}
+	},
+	"settings": {
+		"compilationTarget": {
+			"contracts/FakeNewsFaisal.sol": "FakeNewsFaisa"
+		},
+		"evmVersion": "istanbul",
+		"libraries": {},
+		"metadata": {
+			"bytecodeHash": "ipfs"
+		},
+		"optimizer": {
+			"enabled": false,
+			"runs": 200
+		},
+		"remappings": []
+	},
+	"sources": {
+		"contracts/FakeNewsFaisal.sol": {
+			"keccak256": "0xa1b79da76e0f0c95c4e72df465e361cf2749aa15cb10aa30c0051688a802ccb6",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://47fe6cd61d40715427c43222892a98cde90c0c524cdd3988353bbd6c78bf1a5b",
+				"dweb:/ipfs/QmQyUjDy48qhMN7P2xSKW2P3qChvDgqxqgkeFszBWCAL8r"
+			]
+		}
+	},
+	"version": 1
+}

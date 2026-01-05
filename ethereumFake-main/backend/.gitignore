@@ -1,0 +1,5 @@
+newsol.sol
+prevSol.sol
+.env
+__pycache__/
+*.pyc

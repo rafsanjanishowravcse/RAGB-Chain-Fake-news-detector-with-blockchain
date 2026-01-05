@@ -1,0 +1,59 @@
+{
+	"compiler": {
+		"version": "0.8.0+commit.c7dfd78e"
+	},
+	"language": "Solidity",
+	"output": {
+		"abi": [
+			{
+				"inputs": [],
+				"name": "chodu",
+				"outputs": [
+					{
+						"internalType": "string",
+						"name": "",
+						"type": "string"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			}
+		],
+		"devdoc": {
+			"kind": "dev",
+			"methods": {},
+			"version": 1
+		},
+		"userdoc": {
+			"kind": "user",
+			"methods": {},
+			"version": 1
+		}
+	},
+	"settings": {
+		"compilationTarget": {
+			"contracts/FakeNewsFaisal.sol": "Halarbhai"
+		},
+		"evmVersion": "istanbul",
+		"libraries": {},
+		"metadata": {
+			"bytecodeHash": "ipfs"
+		},
+		"optimizer": {
+			"enabled": false,
+			"runs": 200
+		},
+		"remappings": []
+	},
+	"sources": {
+		"contracts/FakeNewsFaisal.sol": {
+			"keccak256": "0xa276536e125a179cd624ddb8a1cb446e041c70403c20300b00e03462c21ba747",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://d7456ebbb9e079e7f4bea43ffd4a7fd9751c1ec3f70f0e8277eeb72dff3a0f4f",
+				"dweb:/ipfs/QmPRgpU5V6spZhKPMmjv21EcYQfYVFW8FMvMXkD6ZHpWmU"
+			]
+		}
+	},
+	"version": 1
+}

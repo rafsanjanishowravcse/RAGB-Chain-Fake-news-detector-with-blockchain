@@ -1,0 +1,45 @@
+```mermaid
+flowchart LR
+    %% Client Layer
+    user[User (Bangla/English text / image)]
+    ui[Gradio UI (app.py)]
+
+    %% Text Verification Core
+    verify[fact_check_llm.verify_news]
+    qgen[Groq LLM\nMulti-query gen\n(placeholder: your fine-tuned model)]
+    search[Serper.dev search\n+ semantic reranker]
+    summarize[Groq LLM\nEvidence summarizer\n(placeholder model)]
+    judge[Groq LLM\nVerdict + credibility\n(placeholder model)]
+    storage[ClaimStorage JSON + embeddings\n(code/claim_metadata)]
+    onchain_meta[On-chain metadata\n(reputation + tx hash)]
+    ui_out[Result cards\n(REAL/FAKE/UNSURE + score)]
+
+    %% Image Flow
+    img_checker[ImageFactChecker\n(image_fact_checker.py)]
+    ocr[OCR + captioning\n(EasyOCR/Tesseract, BLIP/CLIP if available)]
+
+    %% Language Support
+    translate[SarvamAI\ntranslate (non-Bengali)]
+
+    %% Blockchain Registry
+    registry[Blockchain Registry API\n(fakensethfa.onrender.com)]
+    register[POST /register\n(flagged URL)]
+    lookup_url[GET /getNews?url=...]
+    lookup_pub[GET /getNewsByPublisher?publisher=...]
+
+    %% Relations
+    user --> ui
+    ui -- "Text input" --> verify
+    verify --> translate
+    verify --> qgen --> search --> summarize --> judge
+    judge --> lookup_url --> registry
+    judge --> lookup_pub --> registry
+    judge --> register --> registry
+    judge --> onchain_meta
+    judge --> storage
+    judge --> ui_out
+    ui_out --> ui
+
+    %% Image path reuses text verifier
+    ui -- "Image upload" --> img_checker --> ocr --> verify
+```

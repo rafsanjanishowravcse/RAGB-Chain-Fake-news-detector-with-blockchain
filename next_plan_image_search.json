@@ -1,0 +1,249 @@
+{
+    "project": "AI Fact Checker — IMAGE-BASED NEWS SEARCH",
+    "goal": "Add image-based news search to detect misuse of images in misinformation, starting with OCR and progressively adding metadata, similarity, and forensic analysis.",
+    "strategy": "Start simple (OCR → match → UI) to deliver immediate value, then incrementally add image hashing, embeddings, reverse-search, forensic checks, scoring, and monitoring.",
+    "steps": [
+      {
+        "id": 1,
+        "title": "Ingest & Basic Preprocessing (MVP)",
+        "priority": "high",
+        "description": "Accept image uploads and URLs, normalize orientation, store originals, create a small job record for downstream tasks.",
+        "tasks": [
+          "Add image upload input (file + URL) to Gradio UI.",
+          "Normalize orientation using EXIF orientation flag and create two copies: high-res original (archive) and working copy (model inputs).",
+          "Store file (S3 or local) and create DB record with upload timestamp, uploader id (if any), and path."
+        ],
+        "inputs": ["image file or image URL"],
+        "outputs": ["stored_image_path", "db_image_record"],
+        "tools_models": ["Pillow (PIL) for normalization", "S3 / local FS", "Postgres / SQLite for metadata"],
+        "dependencies": []
+      },
+      {
+        "id": 2,
+        "title": "Optical Character Recognition (OCR) — Core First Step",
+        "priority": "highest",
+        "description": "Extract any visible text from images (Bengali + English first). Produce searchable text that feeds the existing multilingual semantic search.",
+        "tasks": [
+          "Run OCR on the working copy using EasyOCR with languages ['bn', 'en'] (fallback to Tesseract or Cloud OCR for low-quality images).",
+          "Clean and normalize OCR text (remove noise, normalize punctuation, unicode normalization).",
+          "Detect language(s) of OCR segments and tag segments by language.",
+          "Store OCR output in DB and attach to image record; index OCR text in text/vector DB for semantic search."
+        ],
+        "inputs": ["stored_image_path"],
+        "outputs": ["ocr_text", "ocr_segments_with_language_tags"],
+        "tools_models": ["EasyOCR (bn + en)", "Tesseract optional", "langdetect or fastText for language detection", "existing Bengali semantic search pipeline"],
+        "dependencies": ["Ingest & Preprocessing"]
+      },
+      {
+        "id": 3,
+        "title": "Quick Text-to-News Matching (Use OCR as query)",
+        "priority": "high",
+        "description": "Use OCR text (and simple captions) to search your news corpus and surface candidate articles quickly — immediate value for fact-checkers.",
+        "tasks": [
+          "Formulate queries from OCR: raw OCR, cleaned OCR, and translated OCR (use your translation pipeline if OCR is Bengali).",
+          "Run semantic search (existing vector DB) against news corpus; return top-K article hits with similarity scores.",
+          "Display matched article snippets and similarity score in UI."
+        ],
+        "inputs": ["ocr_text"],
+        "outputs": ["news_matches (top-K)"],
+        "tools_models": ["Existing sentence-transformers / vector DB & your translation pipeline", "Gradio UI for displaying results"],
+        "dependencies": ["OCR"]
+      },
+      {
+        "id": 4,
+        "title": "Metadata Extraction & Hashing (pHash, SHA256)",
+        "priority": "high",
+        "description": "Extract file metadata and compute hashes for deduplication and provenance signals.",
+        "tasks": [
+          "Extract EXIF/XMP using exifread / piexif / hachoir.",
+          "Compute file hash (SHA256) for exact-match detection.",
+          "Compute perceptual hashes (pHash / aHash / dHash) using imagehash for near-duplicate detection.",
+          "Save hashes and metadata to DB; use pHash for quick dedupe lookup before expensive tasks."
+        ],
+        "inputs": ["stored_image_path"],
+        "outputs": ["exif_metadata", "sha256", "phash"],
+        "tools_models": ["exifread, piexif, hachoir", "imagehash (phash)"],
+        "dependencies": ["Ingest & Preprocessing"]
+      },
+      {
+        "id": 5,
+        "title": "Image Captioning & Embeddings (CLIP / BLIP)",
+        "priority": "high",
+        "description": "Generate a short caption and compute image embeddings to support visual-textual matching and similarity search.",
+        "tasks": [
+          "Run BLIP/ViT captioning to generate a human-readable caption of the image.",
+          "Compute CLIP (or OpenCLIP) image embeddings and normalize them.",
+          "Index embeddings into existing vector DB (FAISS/Milvus/Pinecone) under images namespace."
+        ],
+        "inputs": ["working copy image"],
+        "outputs": ["image_caption", "image_embedding"],
+        "tools_models": ["BLIP-2 (captioning)", "CLIP / OpenCLIP (embeddings)", "FAISS / Milvus / Pinecone"],
+        "dependencies": ["Ingest & Preprocessing"]
+      },
+      {
+        "id": 6,
+        "title": "Reverse Image Search (External APIs + In-house NN)",
+        "priority": "medium",
+        "description": "Find other instances of the same or similar image on the web to check prior uses and contexts.",
+        "tasks": [
+          "Query external reverse-image APIs (TinEye, Bing Visual Search, Google Vision Web Detection) for matches and record hits (URL, domain, date).",
+          "Run nearest-neighbor search over your indexed image embeddings (vector DB) to find visually similar images in your news archive.",
+          "Aggregate and deduplicate reverse hits (use SHA256 and pHash to dedupe)."
+        ],
+        "inputs": ["sha256", "phash", "image_embedding", "image"],
+        "outputs": ["reverse_hits (list of sources with dates and thumbnails)", "inhouse_similar_images"],
+        "tools_models": ["TinEye API, Bing Visual Search API, Google Vision Web Detection (optional)", "FAISS / Milvus for in-house NN"],
+        "dependencies": ["Metadata Extraction", "Image Embeddings"]
+      },
+      {
+        "id": 7,
+        "title": "Simple Combined Ranking (OCR + Caption + Image Similarity)",
+        "priority": "high",
+        "description": "Combine OCR-text matches, caption matches, and image-similarity hits into a ranked list of candidate articles and occurrences.",
+        "tasks": [
+          "Compute S_text (cosine between OCR/caption embedding and article embeddings).",
+          "Compute S_image (embedding similarity between the image and article images).",
+          "Boost results that appear in reverse-image hits and penalize if EXIF/metadata conflicts with claimed dates.",
+          "Return ranked candidate list and a short evidence summary for each."
+        ],
+        "inputs": ["ocr_text", "image_caption", "image_embedding", "reverse_hits", "news_index"],
+        "outputs": ["ranked_candidates_with_evidence"],
+        "tools_models": ["Your semantic search stack, small ranking combiner (weighted sum)"],
+        "dependencies": ["OCR", "Image Embeddings", "Reverse Image Search"]
+      },
+      {
+        "id": 8,
+        "title": "Gradio UI Integration — MVP View",
+        "priority": "high",
+        "description": "Extend your existing Gradio interface to show image results, OCR, matched articles, and quick verdicts in a clear, journalist-friendly layout.",
+        "tasks": [
+          "Add image preview with zoom and download (mask GPS by default).",
+          "Show OCR text with detected language tags and an option to copy/translate.",
+          "Show top-N matched articles with similarity scores and thumbnails from reverse hits.",
+          "Show a simple credibility summary: 'Likely authentic / Ambiguous / Likely manipulated' with three supporting bullets."
+        ],
+        "inputs": ["ranked_candidates_with_evidence", "ocr_text", "reverse_hits"],
+        "outputs": ["interactive UI panel"],
+        "tools_models": ["Gradio (existing app.py), custom CSS components"],
+        "dependencies": ["Simple Combined Ranking"]
+      },
+      {
+        "id": 9,
+        "title": "Perceptual Forensics — ELA & Copy-Move Detection",
+        "priority": "medium",
+        "description": "Add visual-forensic signals to detect possible manipulations: Error Level Analysis (ELA), copy-move detection, and basic inconsistency checks.",
+        "tasks": [
+          "Implement ELA pipeline (ImageMagick to recompress, compute pixel difference heatmap) and store ELA image.",
+          "Implement block-based copy-move detection (patch hashing + nearest neighbor within same image) to highlight duplicated regions.",
+          "Generate a normalized forensic_score (0–1) and textual forensic_summary explaining flags.",
+          "Overlay forensic highlights on the UI for reviewer inspection."
+        ],
+        "inputs": ["high-res original image"],
+        "outputs": ["ela_image", "copy_move_regions", "forensic_score", "forensic_summary"],
+        "tools_models": ["ImageMagick, scikit-image, OpenCV, custom patch-matching code"],
+        "dependencies": ["Ingest & Preprocessing", "Image storage"]
+      },
+      {
+        "id": 10,
+        "title": "Face / Deepfake Detection (if faces present)",
+        "priority": "medium",
+        "description": "When faces are detected, run specialized detectors to identify signs of neural synthesis or facial manipulation.",
+        "tasks": [
+          "Run face detection and blur/mask option by default for privacy.",
+          "If faces found, compute face embeddings and run deepfake/manipulation classifiers (models trained on FaceForensics++ or other detectors).",
+          "Flag cases with high deepfake probability and show provenance (if a face from the same person appears elsewhere)."
+        ],
+        "inputs": ["image", "forensic_score"],
+        "outputs": ["face_detections", "deepfake_score", "face_matches_in_index"],
+        "tools_models": ["MTCNN / RetinaFace for detection, deepfake classifiers (research models)"],
+        "dependencies": ["Image Embeddings", "Forensic signals"]
+      },
+      {
+        "id": 11,
+        "title": "Evidence Scoring & Explainability (Final Decision Logic)",
+        "priority": "high",
+        "description": "Combine all signals into an explainable misinfo_score and produce human-readable rationale using your LLM for summaries.",
+        "tasks": [
+          "Normalize evidence signals: S_text, S_image, S_reverse, S_meta, F_forensic, F_deepfake (0–1).",
+          "Combine with weighted aggregator (tunable weights) to compute misinfo_score (0–1 where higher = more suspicious).",
+          "Prepare an LLM prompt (use llama-3.1-8b-instant) to synthesize a short explanation and three strongest evidence bullets for or against the claim.",
+          "Expose the scoring breakdown in the UI with expandable details for each evidence type."
+        ],
+        "inputs": ["all previous outputs (ocr_text, matches, forensic_score, reverse_hits, exif)"],
+        "outputs": ["misinfo_score", "explainable_summary", "evidence_breakdown"],
+        "tools_models": ["llama-3.1-8b-instant for explanation", custom scoring code"],
+        "dependencies": ["OCR", "Ranking", "Forensics", "Face detection"]
+      },
+      {
+        "id": 12,
+        "title": "Evaluation, Datasets & Calibration",
+        "priority": "medium",
+        "description": "Build labeled datasets, evaluate retrieval & detection performance, and calibrate weights/thresholds for production.",
+        "tasks": [
+          "Assemble evaluation sets: authentic vs manipulated images, known reused images with ground-truth articles, and region-specific Bengali examples.",
+          "Measure retrieval metrics (Recall@K, MRR) and detection metrics (Precision/Recall, AUC) for forensic models.",
+          "Calibrate aggregator weights and threshold for 'Likely manipulated' vs 'Ambiguous'.",
+          "Log false positives/negatives with reason tags for iterative improvement."
+        ],
+        "inputs": ["candidate images + ground truth labels"],
+        "outputs": ["evaluation_report", "calibrated_weights"],
+        "tools_models": ["sklearn metrics, custom evaluation scripts"],
+        "dependencies": ["All feature pipelines implemented"]
+      },
+      {
+        "id": 13,
+        "title": "Scale, Background Workers & Caching",
+        "priority": "medium",
+        "description": "Move heavy tasks to background workers, add caching, and build monitoring for performance and correctness.",
+        "tasks": [
+          "Move OCR, reverse-search, embedding computation, and forensic pipelines to worker queue (Celery / RQ).",
+          "Cache reverse-search results and similarity lookups by phash/sha256 to avoid repeated external calls.",
+          "Add instrumentation/metrics: job duration, queue length, API error rates, model scoring distribution.",
+          "Create an admin dashboard to review queued images, flagged results, and manual overrides."
+        ],
+        "inputs": ["image jobs"],
+        "outputs": ["worker_queue", "metrics dashboard"],
+        "tools_models": ["Celery / RQ, Prometheus / Grafana or simple admin UI"],
+        "dependencies": ["Ingest & all pipelines"]
+      },
+      {
+        "id": 14,
+        "title": "Privacy, Legal & Human-in-the-Loop Policies",
+        "priority": "high",
+        "description": "Ensure compliance, user controls, and human oversight: mask sensitive data, provide deletion, and require human review for final labels.",
+        "tasks": [
+          "Mask/display GPS only on explicit user request; provide clear privacy notice on uploads.",
+          "Add image deletion endpoints and data retention policies.",
+          "Require human reviewer confirmation before publishing any 'manipulated' verdict; log reviewer decisions for improve- ment.",
+          "Document ethical use, disclaimers, and provenance attribution in UI and README."
+        ],
+        "inputs": ["UI, DB policies"],
+        "outputs": ["privacy_policy_text", "deletion_workflow", "human_review_queue"],
+        "tools_models": ["Legal guidance (consult if needed)"],
+        "dependencies": ["UI Integration", "Storage"]
+      },
+      {
+        "id": 15,
+        "title": "Deployment, Monitoring & Feedback Loop",
+        "priority": "medium",
+        "description": "Deploy end-to-end, monitor system performance and user feedback, and set up continuous improvement pipelines.",
+        "tasks": [
+          "Containerize components (OCR worker, embedding service, Gradio app) and deploy (Cloud VM / Kubernetes / Hugging Face Spaces for demo).",
+          "Set up logs, alerts for model/API failures, and dashboard for key metrics (latency, throughput, flagged rate).",
+          "Add user feedback button on each result to capture correctness and use that data to retrain or reweight models.",
+          "Schedule periodic reindexing of news image corpus to stay up-to-date."
+        ],
+        "inputs": ["complete pipeline"],
+        "outputs": ["deployed_services", "monitoring_dashboard", "feedback_dataset"],
+        "tools_models": ["Docker, Kubernetes or simple VM, CI/CD pipeline, logging/monitoring stack"],
+        "dependencies": ["All previous steps"]
+      }
+    ],
+    "notes": {
+      "mvp_definition": "Steps 1–3 + 5–8 produce a functional MVP: upload → OCR → text-based match → image caption/embedding → simple similarity + UI.",
+      "progression_principle": "Each subsequent step reuses and augments previous outputs (OCR text feeds semantic search; embeddings enter the same vector DB; forensic signals add to scoring).",
+      "privacy_reminder": "Default to not exposing GPS or raw faces; provide deletion and opt-out.",
+      "human_in_loop": "Always surface evidence and treat automated verdicts as advisory; require human confirmation for publishing claims."
+    }
+  }
+  
