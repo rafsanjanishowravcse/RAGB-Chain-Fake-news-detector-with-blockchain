@@ -40,7 +40,7 @@ python code/app.py
 - Configure required model and key settings via `.env` alongside code (LLM, translation, search, ledger settings).
 - For blockchain: ensure RPC, contract address, and keys are set on the backend service that signs transactions; this client uses the hosted bridge.
 
-## Architecture Snapshot
+## Architecture SnapShot
 Mermaid: see `code/architecture.mmd`. Generate fresh via:
 ```bash
 python code/architecture_diagram.py
